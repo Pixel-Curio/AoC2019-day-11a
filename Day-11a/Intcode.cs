@@ -5,10 +5,10 @@ namespace Day_11a
 {
     class Intcode
     {
-        private int _pointer;
-        private readonly int[] _code;
-        private List<int> _input = new List<int>();
-        private int _lastOutput = 0;
+        private long _pointer;
+        private readonly long[] _code;
+        private List<long> _input = new List<long>();
+        private long _lastOutput = 0;
 
         private const string AddCommand = "01";
         private const string MultiplyCommand = "02";
@@ -20,11 +20,11 @@ namespace Day_11a
         private const string EqualsCommand = "08";
         private const string ExitCommand = "99";
 
-        public Intcode(int[] code) => _code = code;
+        public Intcode(long[] code) => _code = code;
 
-        public (bool, int) Process() => Process(null);
+        public (bool, long) Process() => Process(null);
 
-        public (bool, int) Process(List<int> input)
+        public (bool, long) Process(List<long> input)
         {
             if (input != null) _input.AddRange(input);
 
@@ -50,9 +50,9 @@ namespace Day_11a
 
         private void Add(string parameters)
         {
-            int a = ConsumeOpCode();
-            int b = ConsumeOpCode();
-            int target = ConsumeOpCode();
+            long a = ConsumeOpCode();
+            long b = ConsumeOpCode();
+            long target = ConsumeOpCode();
 
             a = parameters[^1] == '0' ? _code.ExpandingGet(a) : a;
             b = parameters[^2] == '0' ? _code.ExpandingGet(b) : b;
@@ -62,9 +62,9 @@ namespace Day_11a
 
         private void Multiply(string parameters)
         {
-            int a = ConsumeOpCode();
-            int b = ConsumeOpCode();
-            int target = ConsumeOpCode();
+            long a = ConsumeOpCode();
+            long b = ConsumeOpCode();
+            long target = ConsumeOpCode();
 
             a = parameters[^1] == '0' ? _code.ExpandingGet(a) : a;
             b = parameters[^2] == '0' ? _code.ExpandingGet(b) : b;
@@ -74,8 +74,8 @@ namespace Day_11a
 
         private void Input(string parameters)
         {
-            int target = ConsumeOpCode();
-            int input;
+            long target = ConsumeOpCode();
+            long input;
 
             if (_input.Count > 0)
             {
@@ -85,17 +85,17 @@ namespace Day_11a
             else
             {
                 Console.WriteLine($"Waiting for input at ({target}): ");
-                input = Convert.ToInt32(Console.ReadLine());
+                input = Convert.ToInt64(Console.ReadLine());
             }
 
             _code.ExpandingSet(target, input);
         }
 
-        private int Output(string parameters)
+        private long Output(string parameters)
         {
-            int target = ConsumeOpCode();
+            long target = ConsumeOpCode();
 
-            int value = parameters[^1] == '0' ? _code.ExpandingGet(target) : target;
+            long value = parameters[^1] == '0' ? _code.ExpandingGet(target) : target;
             _lastOutput = value;
 
             return value;
@@ -103,8 +103,8 @@ namespace Day_11a
 
         private void JumpIfTrue(string parameters)
         {
-            int condition = ConsumeOpCode();
-            int target = ConsumeOpCode();
+            long condition = ConsumeOpCode();
+            long target = ConsumeOpCode();
 
             condition = parameters[^1] == '0' ? _code.ExpandingGet(condition) : condition;
             target = parameters[^2] == '0' ? _code.ExpandingGet(target) : target;
@@ -114,8 +114,8 @@ namespace Day_11a
 
         private void JumpIfFalse(string parameters)
         {
-            int condition = ConsumeOpCode();
-            int target = ConsumeOpCode();
+            long condition = ConsumeOpCode();
+            long target = ConsumeOpCode();
 
             condition = parameters[^1] == '0' ? _code.ExpandingGet(condition) : condition;
             target = parameters[^2] == '0' ? _code.ExpandingGet(target) : target;
@@ -125,9 +125,9 @@ namespace Day_11a
 
         private void LessThan(string parameters)
         {
-            int a = ConsumeOpCode();
-            int b = ConsumeOpCode();
-            int target = ConsumeOpCode();
+            long a = ConsumeOpCode();
+            long b = ConsumeOpCode();
+            long target = ConsumeOpCode();
 
             a = parameters[^1] == '0' ? _code.ExpandingGet(a) : a;
             b = parameters[^2] == '0' ? _code.ExpandingGet(b) : b;
@@ -137,9 +137,9 @@ namespace Day_11a
 
         private void Equals(string parameters)
         {
-            int a = ConsumeOpCode();
-            int b = ConsumeOpCode();
-            int target = ConsumeOpCode();
+            long a = ConsumeOpCode();
+            long b = ConsumeOpCode();
+            long target = ConsumeOpCode();
 
             a = parameters[^1] == '0' ? _code.ExpandingGet(a) : a;
             b = parameters[^2] == '0' ? _code.ExpandingGet(b) : b;
@@ -147,29 +147,29 @@ namespace Day_11a
             _code.ExpandingSet(target, a == b ? 1 : 0);
         }
 
-        public int GetValue(int index) => _code[index];
+        public long GetValue(long index) => _code[index];
 
-        public Intcode BufferInput(List<int> input)
+        public Intcode BufferInput(List<long> input)
         {
             _input.AddRange(input);
             return this;
         }
 
-        public int GetLastOutput() => _lastOutput;
+        public long GetLastOutput() => _lastOutput;
 
-        private int ConsumeOpCode() => _pointer < _code.Length ? _code[_pointer++] : 99;
+        private long ConsumeOpCode() => _pointer < _code.Length ? _code[_pointer++] : 99;
     }
 
     public static class ArrayExtensions
     {
-        public static void ExpandingSet(this int[] source, int index, int value)
+        public static void ExpandingSet(this long[] source, long index, long value)
         {
-            if (index > source.Length) Array.Resize(ref source, index + 1);
+            if (index > source.Length) Array.Resize(ref source, (int)index + 1);
             source[index] = value;
         }
-        public static int ExpandingGet(this int[] source, int index)
+        public static long ExpandingGet(this long[] source, long index)
         {
-            if (index > source.Length) Array.Resize(ref source, index + 1);
+            if (index > source.Length) Array.Resize(ref source, (int)index + 1);
             return source[index];
         }
     }
