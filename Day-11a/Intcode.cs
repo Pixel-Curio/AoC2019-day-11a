@@ -6,9 +6,10 @@ namespace Day_11a
     class Intcode
     {
         private long _pointer;
-        private readonly long[] _code;
+        private long _relativeBase;
+        private long[] _code;
         private List<long> _input = new List<long>();
-        private long _lastOutput = 0;
+        private long _lastOutput;
 
         private const string AddCommand = "01";
         private const string MultiplyCommand = "02";
@@ -18,11 +19,10 @@ namespace Day_11a
         private const string JumpIfFalseCommand = "06";
         private const string LessThanCommand = "07";
         private const string EqualsCommand = "08";
+        private const string SetBaseCommand = "09";
         private const string ExitCommand = "99";
 
         public Intcode(long[] code) => _code = code;
-
-        public (bool, long) Process() => Process(null);
 
         public (bool, long) Process(List<long> input)
         {
@@ -37,14 +37,13 @@ namespace Day_11a
                 if (opCode == AddCommand) Add(parameters);
                 else if (opCode == MultiplyCommand) Multiply(parameters);
                 else if (opCode == InputCommand) Input(parameters);
-                else if (opCode == OutputCommand) 
-                    return (false, Output(parameters));
+                else if (opCode == OutputCommand) return (false, Output(parameters));
                 else if (opCode == JumpIfTrueCommand) JumpIfTrue(parameters);
                 else if (opCode == JumpIfFalseCommand) JumpIfFalse(parameters);
                 else if (opCode == LessThanCommand) LessThan(parameters);
                 else if (opCode == EqualsCommand) Equals(parameters);
-                else if (opCode == ExitCommand) 
-                    return (true, _lastOutput);
+                else if (opCode == SetBaseCommand) SetBase(parameters);
+                else if (opCode == ExitCommand) return (true, _lastOutput);
             }
         }
 
@@ -54,10 +53,11 @@ namespace Day_11a
             long b = ConsumeOpCode();
             long target = ConsumeOpCode();
 
-            a = parameters[^1] == '0' ? _code.ExpandingGet(a) : a;
-            b = parameters[^2] == '0' ? _code.ExpandingGet(b) : b;
+            a = GetParameter(parameters[^1], a);
+            b = GetParameter(parameters[^2], b);
+            target = GetTarget(parameters[^3], target);
 
-            _code.ExpandingSet(target, a + b);
+            ExpandingSet(target, a + b);
         }
 
         private void Multiply(string parameters)
@@ -66,17 +66,19 @@ namespace Day_11a
             long b = ConsumeOpCode();
             long target = ConsumeOpCode();
 
-            a = parameters[^1] == '0' ? _code.ExpandingGet(a) : a;
-            b = parameters[^2] == '0' ? _code.ExpandingGet(b) : b;
+            a = GetParameter(parameters[^1], a);
+            b = GetParameter(parameters[^2], b);
+            target = GetTarget(parameters[^3], target);
 
-            _code.ExpandingSet(target, a * b);
+            ExpandingSet(target, a * b);
         }
 
         private void Input(string parameters)
         {
             long target = ConsumeOpCode();
-            long input;
+            target = GetTarget(parameters[^1], target);
 
+            long input;
             if (_input.Count > 0)
             {
                 input = _input[0];
@@ -88,16 +90,16 @@ namespace Day_11a
                 input = Convert.ToInt64(Console.ReadLine());
             }
 
-            _code.ExpandingSet(target, input);
+            ExpandingSet(target, input);
         }
 
         private long Output(string parameters)
         {
             long target = ConsumeOpCode();
 
-            long value = parameters[^1] == '0' ? _code.ExpandingGet(target) : target;
-            _lastOutput = value;
+            long value = GetParameter(parameters[^1], target);
 
+            _lastOutput = value;
             return value;
         }
 
@@ -106,8 +108,8 @@ namespace Day_11a
             long condition = ConsumeOpCode();
             long target = ConsumeOpCode();
 
-            condition = parameters[^1] == '0' ? _code.ExpandingGet(condition) : condition;
-            target = parameters[^2] == '0' ? _code.ExpandingGet(target) : target;
+            condition = GetParameter(parameters[^1], condition);
+            target = GetParameter(parameters[^2], target);
 
             if (condition != 0) _pointer = target;
         }
@@ -117,8 +119,8 @@ namespace Day_11a
             long condition = ConsumeOpCode();
             long target = ConsumeOpCode();
 
-            condition = parameters[^1] == '0' ? _code.ExpandingGet(condition) : condition;
-            target = parameters[^2] == '0' ? _code.ExpandingGet(target) : target;
+            condition = GetParameter(parameters[^1], condition);
+            target = GetParameter(parameters[^2], target);
 
             if (condition == 0) _pointer = target;
         }
@@ -129,10 +131,11 @@ namespace Day_11a
             long b = ConsumeOpCode();
             long target = ConsumeOpCode();
 
-            a = parameters[^1] == '0' ? _code.ExpandingGet(a) : a;
-            b = parameters[^2] == '0' ? _code.ExpandingGet(b) : b;
+            a = GetParameter(parameters[^1], a);
+            b = GetParameter(parameters[^2], b);
+            target = GetTarget(parameters[^3], target);
 
-            _code.ExpandingSet(target, a < b ? 1 : 0);
+            ExpandingSet(target, a < b ? 1 : 0);
         }
 
         private void Equals(string parameters)
@@ -141,36 +144,58 @@ namespace Day_11a
             long b = ConsumeOpCode();
             long target = ConsumeOpCode();
 
-            a = parameters[^1] == '0' ? _code.ExpandingGet(a) : a;
-            b = parameters[^2] == '0' ? _code.ExpandingGet(b) : b;
+            a = GetParameter(parameters[^1], a);
+            b = GetParameter(parameters[^2], b);
+            target = GetTarget(parameters[^3], target);
 
-            _code.ExpandingSet(target, a == b ? 1 : 0);
+            ExpandingSet(target, a == b ? 1 : 0);
         }
 
-        public long GetValue(long index) => _code[index];
-
-        public Intcode BufferInput(List<long> input)
+        private void SetBase(string parameters)
         {
-            _input.AddRange(input);
-            return this;
+            long amount = ConsumeOpCode();
+
+            amount = GetParameter(parameters[^1], amount);
+
+            _relativeBase += amount;
+        }
+
+        private long GetParameter(char mode, long value)
+        {
+            return mode switch
+            {
+                '0' => ExpandingGet(value),
+                '1' => value,
+                '2' => ExpandingGet(_relativeBase + value)
+            };
+        }
+
+        private long GetTarget(char mode, long value)
+        {
+            return mode switch
+            {
+                '0' => value,
+                '1' => throw new Exception("Target params cannot be set to immediate mode."),
+                '2' => _relativeBase + value
+            };
+        }
+
+        private void ExpandingSet(long index, long value)
+        {
+            if (index >= _code.Length)
+                Array.Resize(ref _code, (int)index + 1);
+            _code[index] = value;
+        }
+
+        private long ExpandingGet(long index)
+        {
+            if (index >= _code.Length)
+                Array.Resize(ref _code, (int)index + 1);
+            return _code[index];
         }
 
         public long GetLastOutput() => _lastOutput;
 
         private long ConsumeOpCode() => _pointer < _code.Length ? _code[_pointer++] : 99;
-    }
-
-    public static class ArrayExtensions
-    {
-        public static void ExpandingSet(this long[] source, long index, long value)
-        {
-            if (index > source.Length) Array.Resize(ref source, (int)index + 1);
-            source[index] = value;
-        }
-        public static long ExpandingGet(this long[] source, long index)
-        {
-            if (index > source.Length) Array.Resize(ref source, (int)index + 1);
-            return source[index];
-        }
     }
 }
